@@ -36,7 +36,7 @@ namespace SharpIM.Server.Core
 
         public object PropertyValue
         {
-            get { return propType; }
+            get { return propValue; }
         }
     }
 }
