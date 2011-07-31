@@ -5,18 +5,29 @@ namespace SharpIM.Server.Data
 {
     public class Database
     {
-        private readonly MySqlConnection sqlConnection;
+        private MySqlConnection _sqlConnection;
 
         public Database(string connString)
         {
-            sqlConnection = new MySqlConnection(connString);
-            sqlConnection.Open();
+            _sqlConnection = new MySqlConnection(connString);
+            _sqlConnection.Open();
         }
 
-        public User GetUserInfo(string name)
+        public void InsertUser(User user)
         {
-            var usr = new User(null);
+            MySqlCommand cmd = _sqlConnection.CreateCommand();
+            cmd.CommandText = string.Format("INSERT INTO `users` (`id`, `username`, `password`, `email`) VALUES (0, '{0:s}', '{1:s}', '{2:s}')", user.Username, user.Password, user.Email);
+            cmd.ExecuteNonQuery();
+            cmd.Dispose();
+        }
 
+        public void UpdateUser(User user)
+        {
+        }
+
+        public User SelectUser(string name)
+        {
+            //var usr = new User(null);
             return null;
         }
     }

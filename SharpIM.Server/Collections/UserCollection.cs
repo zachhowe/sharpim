@@ -32,12 +32,18 @@ namespace SharpIM.Server.Collections
     {
         public void Add(object val)
         {
-            List.Add(val);
+            lock (List)
+            {
+                List.Add(val);
+            }
         }
 
         public void Remove(object val)
         {
-            List.Remove(val);
+            lock (List)
+            {
+                List.Remove(val);
+            }
         }
 
         public bool Contains(string name)

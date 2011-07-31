@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using SharpIM.Server.Events;
+using SharpIM.Server.Data;
 
 namespace SharpIM.Server.Core
 {
@@ -13,53 +14,46 @@ namespace SharpIM.Server.Core
     {
         #region User Information
 
-        private readonly ArrayList buddies;
-        private string email;
-        private bool isAdmin;
-        private byte[] password;
-        private DateTime signOnTime;
-        private BuddyStatus status;
-        private string username;
-
         public ArrayList Buddies
         {
-            get { return buddies; }
+            get;
+            set;
         }
 
         public DateTime SignOnTime
         {
-            get { return signOnTime; }
-            set { signOnTime = value; }
+            get;
+            set;
         }
 
         public BuddyStatus Status
         {
-            get { return status; }
-            set { status = value; }
+            get;
+            set;
         }
 
-        public byte[] Password
+        public string Password
         {
-            get { return password; }
-            set { password = value; }
+            get;
+            set;
         }
 
         public string Username
         {
-            get { return username; }
-            set { username = value; }
+            get;
+            set;
         }
 
         public string Email
         {
-            get { return email; }
-            set { email = value; }
+            get;
+            set;
         }
 
         public bool IsAdmin
         {
-            get { return isAdmin; }
-            set { isAdmin = value; }
+            get;
+            set;
         }
 
         #endregion
@@ -74,8 +68,8 @@ namespace SharpIM.Server.Core
         public event UserGroupMessage OnUserGroupMessage;
         public event UserJoinedGroup OnUserJoinedGroup;
         public event UserPartedGroup OnUserPartedGroup;
-        public event UserKickedUser OnUserKickedUser;
-        public event UserBannedUser OnUserBannedUser;
+        public event AdminKickedUser OnUserKickedUser;
+        public event AdminBannedUser OnUserBannedUser;
         public event UserSignOnTimeRequest OnUserSignOnTimeRequest;
 
         #endregion
@@ -129,10 +123,10 @@ namespace SharpIM.Server.Core
         {
             socket = sock;
 
-            isAdmin = false;
+            this.IsAdmin = false;
 
             // Initiate buddy list array
-            buddies = new ArrayList();
+            this.Buddies = new ArrayList();
 
             endPoint = socket.RemoteEndPoint;
 
@@ -140,9 +134,6 @@ namespace SharpIM.Server.Core
             ns = new NetworkStream(socket);
             sw = new StreamWriter(ns);
             sr = new StreamReader(ns);
-
-            // Start talking thread
-            new Thread(TalkerThread).Start();
         }
 
         public void SendUserSignOnTime(string user, DateTime time)
@@ -209,7 +200,7 @@ namespace SharpIM.Server.Core
             sw.Flush();
         }
 
-        private bool Authenticate()
+        private bool AuthenticateUser()
         {
             string[] loginarray = sr.ReadLine().Split(' ');
 
@@ -227,10 +218,10 @@ namespace SharpIM.Server.Core
 
                         Console.WriteLine("{0} has just logged on!", user);
 
-                        username = user;
+                        this.Username = user;
 
                         // TODO: this should not be saved in memory
-                        password = Encoding.ASCII.GetBytes(pass);
+                        this.Password = pass;
 
                         return true;
                     }
@@ -239,14 +230,12 @@ namespace SharpIM.Server.Core
                         sw.WriteLine("LOGIN FAIL");
                         sw.Flush();
 
-                        Console.WriteLine("{0} has just failed to login!", user);
-
                         return false;
                     }
                 }
                 else if (loginarray[0] == "REGISTER")
                 {
-                    isAdmin = false;
+                    this.IsAdmin = false;
 
                     string user = loginarray[1];
                     string pass = loginarray[2];
@@ -258,15 +247,15 @@ namespace SharpIM.Server.Core
 
                         Console.WriteLine("{0} has just registered and logged on!", loginarray[1]);
 
-                        username = user;
-                        password = Encoding.ASCII.GetBytes(pass);
+                        this.Username = user;
+                        this.Password = pass;
+
+                        DataAccessor.InsertUser(this);
 
                         return true;
                     }
                     else
                     {
-                        Console.WriteLine("{0} has just failed to register!", loginarray[1]);
-
                         sw.WriteLine("REGISTER FAIL");
                         sw.Flush();
 
@@ -278,145 +267,154 @@ namespace SharpIM.Server.Core
             return false;
         }
 
-        private void TalkerThread()
+        public void Talk()
+        {
+            if (!ns.DataAvailable) return;
+
+            try
+            {
+                string[] msgarray = sr.ReadLine().Split(' ');
+
+                if (msgarray[0].ToUpper() == "QUIT")
+                {
+                    OnUserStatus(this, new UserStatusEventArgs(this.Username, BuddyStatus.Offline));
+                    OnUserQuit(this);
+                    Thread.CurrentThread.Abort();
+                }
+                else if (msgarray[0].ToUpper() == "SAVE")
+                {
+                    Save();
+                }
+                else if (msgarray[0].ToUpper() == "ADD")
+                {
+                    if (msgarray[1].ToUpper() == "BUDDY")
+                    {
+                        this.Buddies.Add(msgarray[2]);
+                    }
+                }
+                else if (msgarray[0].ToUpper() == "REMOVE")
+                {
+                    if (msgarray[1].ToUpper() == "BUDDY")
+                    {
+                        this.Buddies.Remove(msgarray[2]);
+                    }
+                }
+                else if (msgarray[0].ToUpper() == "KILL" && msgarray.Length > 2)
+                {
+                    if (this.IsAdmin)
+                    {
+                        sw.WriteLine("ERROR KILL Function working yet.");
+                        sw.Flush();
+                    }
+                    else
+                    {
+                        sw.WriteLine("ERROR KILL Function not permitted.");
+                        sw.Flush();
+                    }
+                }
+                else if (msgarray[0].ToUpper() == "MSG")
+                {
+                    if (!msgarray[1].ToUpper().StartsWith("#"))
+                    {
+                        OnUserMessage(this,
+                                      new UserMessageEventArgs(this.Username, msgarray[1],
+                                                               Utility.GetRestOfMessage(msgarray, 2)));
+                    }
+                    else
+                    {
+                        OnUserGroupMessage(this,
+                                           new GroupMessageEventArgs(this.Username, msgarray[1],
+                                                                     Utility.GetRestOfMessage(msgarray, 2)));
+                    }
+                }
+                else if (msgarray[0].ToUpper() == "JOIN")
+                {
+                    OnUserJoinedGroup(msgarray[1], this.Username);
+                }
+                else if (msgarray[0].ToUpper() == "PART")
+                {
+                    OnUserPartedGroup(msgarray[1], this.Username);
+                }
+                else if (msgarray[1].ToUpper() == "KICK")
+                {
+                    OnUserKickedUser(msgarray[3], this.Username, msgarray[2]);
+                }
+                else if (msgarray[1].ToUpper() == "BAN")
+                {
+                    OnUserBannedUser(msgarray[3], this.Username, msgarray[2]);
+                }
+                else if (msgarray[0].ToUpper() == "GET")
+                {
+                    if (msgarray[1].ToUpper() == "STATUS")
+                    {
+                        OnUserStatusRequest(this, msgarray[2]);
+                    }
+                    else if (msgarray[1].ToUpper() == "SIGNONTIME")
+                    {
+                        OnUserSignOnTimeRequest(this, msgarray[2]);
+                    }
+                    else if (msgarray[1].ToUpper() == "GROUP")
+                    {
+                    }
+                    else if (msgarray[1].ToUpper() == "BUDDYLIST")
+                    {
+                        string buddys = string.Empty;
+
+                        foreach (string x in this.Buddies)
+                        {
+                            buddys += x + ";";
+                        }
+
+                        sw.WriteLine("BUDDYLIST {0}", buddys);
+                        sw.Flush();
+                    }
+                }
+                else if (msgarray[0].ToUpper() == "SET")
+                {
+                    if (msgarray[1].ToUpper() == "STATUS")
+                    {
+                        if (msgarray[2].ToUpper() == "AWAY")
+                        {
+                            this.Status = BuddyStatus.Away;
+                            OnUserStatus(this, new UserStatusEventArgs(this.Username, BuddyStatus.Away));
+                        }
+                        else if (msgarray[2].ToUpper() == "BACK")
+                        {
+                            this.Status = BuddyStatus.Online;
+                            OnUserStatus(this, new UserStatusEventArgs(this.Username, BuddyStatus.Online));
+                        }
+                    }
+                    else if (msgarray[1].ToUpper() == "EMAIL")
+                    {
+                        this.Email = msgarray[2];
+                    }
+                    else if (msgarray[1].ToUpper() == "PASSWD")
+                    {
+                        this.Password = msgarray[2];
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        public void Authenticate()
         {
             sw.WriteLine("LOGIN {0:s}", "READY"); // switch READY to DISABLED on-demand
             sw.WriteLine("REGISTER {0:s}", "READY"); // switch READY to DISABLED on-demand
             sw.Flush();
 
-            if (Authenticate())
+            if (AuthenticateUser())
             {
                 if (OnAuthenticated != null) OnAuthenticated(this);
 
                 Load();
 
-                if (OnUserStatus != null) OnUserStatus(this, new UserStatusEventArgs(username, BuddyStatus.Online));
+                if (OnUserStatus != null) OnUserStatus(this, new UserStatusEventArgs(this.Username, BuddyStatus.Online));
 
-                signOnTime = DateTime.Now;
-
-                while (true)
-                {
-                    string[] msgarray = sr.ReadLine().Split(' ');
-
-                    if (msgarray[0].ToUpper() == "QUIT")
-                    {
-                        OnUserStatus(this, new UserStatusEventArgs(username, BuddyStatus.Offline));
-                        OnUserQuit(this);
-                        Thread.CurrentThread.Abort();
-                    }
-                    else if (msgarray[0].ToUpper() == "SAVE")
-                    {
-                        SaveData();
-                    }
-                    else if (msgarray[0].ToUpper() == "ADD")
-                    {
-                        if (msgarray[1].ToUpper() == "BUDDY")
-                        {
-                            buddies.Add(msgarray[2]);
-                        }
-                    }
-                    else if (msgarray[0].ToUpper() == "REMOVE")
-                    {
-                        if (msgarray[1].ToUpper() == "BUDDY")
-                        {
-                            buddies.Remove(msgarray[2]);
-                        }
-                    }
-                    else if (msgarray[0].ToUpper() == "KILL" && msgarray.Length > 2)
-                    {
-                        if (isAdmin)
-                        {
-                            sw.WriteLine("599 Function working yet.");
-                            sw.Flush();
-                        }
-                        else
-                        {
-                            sw.WriteLine("990 Function not permitted.");
-                            sw.Flush();
-                        }
-                    }
-                    else if (msgarray[0].ToUpper() == "MSG")
-                    {
-                        if (!msgarray[1].ToUpper().StartsWith("#"))
-                        {
-                            OnUserMessage(this,
-                                          new UserMessageEventArgs(username, msgarray[1],
-                                                                   Utility.GetRestOfMessage(msgarray, 2)));
-                        }
-                        else
-                        {
-                            OnUserGroupMessage(this,
-                                               new GroupMessageEventArgs(username, msgarray[1],
-                                                                         Utility.GetRestOfMessage(msgarray, 2)));
-                        }
-                    }
-                    else if (msgarray[0].ToUpper() == "JOIN")
-                    {
-                        OnUserJoinedGroup(msgarray[1], username);
-                    }
-                    else if (msgarray[0].ToUpper() == "PART")
-                    {
-                        OnUserPartedGroup(msgarray[1], username);
-                    }
-                    else if (msgarray[1].ToUpper() == "KICK")
-                    {
-                        OnUserKickedUser(msgarray[3], username, msgarray[2]);
-                    }
-                    else if (msgarray[1].ToUpper() == "BAN")
-                    {
-                        OnUserBannedUser(msgarray[3], username, msgarray[2]);
-                    }
-                    else if (msgarray[0].ToUpper() == "GET")
-                    {
-                        if (msgarray[1].ToUpper() == "STATUS")
-                        {
-                            OnUserStatusRequest(this, msgarray[2]);
-                        }
-                        else if (msgarray[1].ToUpper() == "SIGNONTIME")
-                        {
-                            OnUserSignOnTimeRequest(this, msgarray[2]);
-                        }
-                        else if (msgarray[1].ToUpper() == "GROUP")
-                        {
-                        }
-                        else if (msgarray[1].ToUpper() == "BUDDYLIST")
-                        {
-                            string buddys = string.Empty;
-
-                            foreach (string x in Buddies)
-                            {
-                                buddys += x + ";";
-                            }
-
-                            sw.WriteLine("BUDDYLIST {0}", buddys);
-                            sw.Flush();
-                        }
-                    }
-                    else if (msgarray[0].ToUpper() == "SET")
-                    {
-                        if (msgarray[1].ToUpper() == "STATUS")
-                        {
-                            if (msgarray[2].ToUpper() == "AWAY")
-                            {
-                                status = BuddyStatus.Away;
-                                OnUserStatus(this, new UserStatusEventArgs(username, BuddyStatus.Away));
-                            }
-                            else if (msgarray[2].ToUpper() == "BACK")
-                            {
-                                status = BuddyStatus.Online;
-                                OnUserStatus(this, new UserStatusEventArgs(username, BuddyStatus.Online));
-                            }
-                        }
-                        else if (msgarray[1].ToUpper() == "EMAIL")
-                        {
-                            email = msgarray[2];
-                        }
-                        else if (msgarray[1].ToUpper() == "PASSWD")
-                        {
-                            password = Encoding.ASCII.GetBytes(msgarray[2]);
-                        }
-                    }
-                }
+                this.SignOnTime = DateTime.Now;
             }
             else
             {
@@ -427,80 +425,13 @@ namespace SharpIM.Server.Core
             }
         }
 
-        public void SaveData()
+        public void Save()
         {
-            /*
-			string configpath = "Data\\Users\\" + this.username + ".xml";
-			
-			if (!File.Exists(configpath))
-			{
-				File.Create(configpath).Close();
-				
-				XmlConfigSource xml = new XmlConfigSource();
-				
-				IConfig configBuddies = xml.AddConfig("Buddies");
-				foreach (string x in this.buddies)
-				{
-					configBuddies.Set("Buddy: " + x, x);
-				}
-				
-				IConfig configSettings = xml.AddConfig("Settings");
-				if (this.isOperator) configSettings.Set("IsOperator", "True");
-                else configSettings.Set("IsOperator", "False");
-				if (this.isAdmin)configSettings.Set("IsAdmin", "True");
-                else configSettings.Set("IsAdmin", "False");
-				if (this.email != null) configSettings.Set("Email", this.email);
-                if (this.hash != null) configSettings.Set("Password", ASCIIEncoding.ASCII.GetString(this.hash));
-				if (this.homepage != null) configSettings.Set("Homepage", this.hash);
-				
-				xml.Save(configpath);
-			}
-			else
-			{
-				XmlConfigSource xml = new XmlConfigSource(configpath);
-				
-				IConfig configBuddies = xml.Configs["Buddies"];
-				
-				foreach (string x in this.buddies)
-				{
-					configBuddies.Set("Buddy: " + x, x);
-				}
-				
-				IConfig configSettings = xml.Configs["Settings"];
-                if (this.isOperator) configSettings.Set("IsOperator", "True");
-                else configSettings.Set("IsOperator", "False");
-                if (this.isAdmin) configSettings.Set("IsAdmin", "True");
-                else configSettings.Set("IsAdmin", "False");
-				if (this.email != null) configSettings.Set("Email", this.email);
-				if (this.hash != null) configSettings.Set("Password", ASCIIEncoding.ASCII.GetString(this.hash));
-				if (this.homepage != null) configSettings.Set("Homepage", this.hash);
-				
-				xml.Save();
-			} */
+            DataAccessor.UpdateUser(this);
         }
 
-        private void Load()
+        public void Load()
         {
-/*
-			string configpath = "Data\\Users\\" + this.username + ".xml";
-			
-			XmlConfigSource xml = new XmlConfigSource(configpath);
-				
-			IConfig configBuddies = xml.Configs["Buddies"];
-			foreach (string x in configBuddies.GetValues())
-			{
-				this.buddies.Add(x);
-			}
-			
-			IConfig configSettings = xml.Configs["Settings"];
-
-            if (configSettings.Get("IsOperator") == "True") this.isOperator = true;
-            else this.isOperator = false;
-            if (configSettings.Get("IsAdmin") == "True") this.isOperator = true;
-            else this.isAdmin = false;
-			this.email = configSettings.Get("Email");
-			this.hash = ASCIIEncoding.ASCII.GetBytes(configSettings.Get("Password"));
-			this.homepage = configSettings.Get("Homepage");*/
         }
     }
 }

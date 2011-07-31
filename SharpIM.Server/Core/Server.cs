@@ -14,6 +14,7 @@ namespace SharpIM.Server.Core
         private readonly GroupCollection groups;
         private readonly TcpListener listener;
         private readonly Thread listenerThread;
+        private readonly Thread poolThread;
         private readonly UserPool users;
         private bool isRunning;
 
@@ -44,6 +45,9 @@ namespace SharpIM.Server.Core
             groups = new GroupCollection();
             listener = new TcpListener(IPAddress.Any, port);
             listenerThread = new Thread(ListenerThread);
+
+            poolThread = new Thread(new ThreadStart(users.SocketPoolingThread));
+            poolThread.Start();
         }
 
         #region User Event Handlers
@@ -263,6 +267,8 @@ namespace SharpIM.Server.Core
                 var user = new User(listener.AcceptSocket());
 
                 user.OnAuthenticated += User_OnAuthenticated;
+
+                user.Authenticate();
 
                 Thread.Sleep(512);
             }

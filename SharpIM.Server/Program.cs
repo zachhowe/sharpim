@@ -28,12 +28,8 @@ namespace SharpIM.Server
     {
         public static void Main(string[] args)
         {
-            if (!Directory.Exists("Data"))
-            {
-                Directory.CreateDirectory("Data");
-            }
-
             var conf = new Configuration("SharpIM", "SharpIM.Server.Config.xml");
+
             if (!conf.Check())
             {
                 conf.LoadDefaults();

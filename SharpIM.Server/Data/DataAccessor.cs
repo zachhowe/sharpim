@@ -1,4 +1,6 @@
-﻿namespace SharpIM.Server.Data
+﻿using SharpIM.Server.Core;
+
+namespace SharpIM.Server.Data
 {
     public static class DataAccessor
     {
@@ -7,6 +9,16 @@
         public static void Initialize(Database database)
         {
             m_database = database;
+        }
+
+        public static void InsertUser(User u)
+        {
+            m_database.InsertUser(u);
+        }
+
+        public static void UpdateUser(User u)
+        {
+            m_database.UpdateUser(u);
         }
     }
 }

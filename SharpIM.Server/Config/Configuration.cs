@@ -54,7 +54,7 @@ namespace SharpIM.Server.Config
         public void LoadDefaults()
         {
             m_settings.PutValue("ConnectionString",
-                                "Server=localhost;Port=3306;User Id=sharpim;Password=hello;Database=sharpim");
+                                "Server=localhost;Port=3306;User Id=sharpim;Password=sharpim;Database=sharpim");
             m_settings.PutValue("Port", 4103);
         }
 

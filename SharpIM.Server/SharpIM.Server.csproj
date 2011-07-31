@@ -75,7 +75,7 @@
     <Compile Include="Events\UserMessageEventArgs.cs" />
     <Compile Include="Events\GroupSendMessageEventArgs.cs" />
     <Compile Include="Events\GroupMessageEventArgs.cs" />
-    <Compile Include="Collections\UserCollections.cs" />
+    <Compile Include="Collections\UserCollection.cs" />
     <Compile Include="Collections\MembersCollection.cs" />
     <Compile Include="Collections\GroupCollection.cs" />
     <Compile Include="Config\ConfigDictionary.cs" />

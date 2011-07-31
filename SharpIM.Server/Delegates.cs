@@ -40,9 +40,9 @@ namespace SharpIM.Server
 
     public delegate void UserPartedGroup(string group, string user);
 
-    public delegate void UserKickedUser(string to, string from, string group);
+    public delegate void AdminKickedUser(string to, string from, string group);
 
-    public delegate void UserBannedUser(string to, string from, string group);
+    public delegate void AdminBannedUser(string to, string from, string group);
 
     // Group delegates
     public delegate void GroupSendMessage(object sender, GroupSendMessageEventArgs e);
