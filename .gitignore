@@ -3,3 +3,8 @@ Build
 SharpIM/obj
 SharpIM.Client/obj
 SharpIM.Server/obj
+SharpIM.Client/bin
+SharpIM.Client/SharpIM.Client.pidb
+SharpIM.Server/SharpIM.Server.pidb
+SharpIM.userprefs
+SharpIM/SharpIM.pidb
