@@ -52,9 +52,15 @@ namespace SharpIM.Server
             return string.Join(" ", msg, start, msg.Length - start);
         }
 
+        
         public static long UnixTime(DateTime dt)
         {
-            var unixEpoch = new DateTime(2005, 1, 1, 0, 0, 0);
+        	return UnixTime(dt, 2005);
+        }
+        
+        public static long UnixTime(DateTime dt, int start_year)
+        {
+            var unixEpoch = new DateTime(start_year, 1, 1, 0, 0, 0);
             return (dt.Ticks - unixEpoch.Ticks)/10000000;
         }
     }
