@@ -1,4 +1,5 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using MySql.Data.MySqlClient;
 using SharpIM.Server.Core;
 
 namespace SharpIM.Server.Data
@@ -9,8 +10,15 @@ namespace SharpIM.Server.Data
 
         public Database(string connString)
         {
-            _sqlConnection = new MySqlConnection(connString);
-            _sqlConnection.Open();
+            try
+            {
+                _sqlConnection = new MySqlConnection(connString);
+                _sqlConnection.Open();
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("MySQL Exception: {0:s}", e.Message);
+            }
         }
 
         public void InsertUser(User user)
@@ -27,8 +35,9 @@ namespace SharpIM.Server.Data
 
         public User SelectUser(string name)
         {
-            //var usr = new User(null);
-            return null;
+            User usr = new User(null);
+
+            return usr;
         }
     }
 }

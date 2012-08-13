@@ -202,66 +202,76 @@ namespace SharpIM.Server.Core
 
         private bool AuthenticateUser()
         {
-            string[] loginarray = sr.ReadLine().Split(' ');
-
-            if (loginarray.Length > 2)
+            try
             {
-                if (loginarray[0] == "LOGIN")
+                string[] loginarray = sr.ReadLine().Split(' ');
+
+                if (loginarray.Length > 2)
                 {
-                    string user = loginarray[1];
-                    string pass = loginarray[2];
-
-                    if (Authentication.CheckUser(user, pass))
+                    if (loginarray[0] == "LOGIN")
                     {
-                        sw.WriteLine("LOGIN SUCCESS");
-                        sw.Flush();
+                        string user = loginarray[1];
+                        string pass = loginarray[2];
 
-                        Console.WriteLine("{0} has just logged on!", user);
+                        if (Authentication.CheckUser(user, pass))
+                        {
+                            sw.WriteLine("LOGIN SUCCESS");
+                            sw.Flush();
 
-                        this.Username = user;
+                            Console.WriteLine("{0} has just logged on!", user);
 
-                        // TODO: this should not be saved in memory
-                        this.Password = pass;
+                            this.Username = user;
 
-                        return true;
+                            // TODO: this should not be saved in memory
+                            this.Password = pass;
+
+                            return true;
+                        }
+                        else
+                        {
+                            sw.WriteLine("LOGIN FAIL");
+                            sw.Flush();
+
+                            return false;
+                        }
                     }
-                    else
+                    else if (loginarray[0] == "REGISTER")
                     {
-                        sw.WriteLine("LOGIN FAIL");
-                        sw.Flush();
+                        this.IsAdmin = false;
 
-                        return false;
+                        string user = loginarray[1];
+                        string pass = loginarray[2];
+
+                        if (Authentication.RegisterUser(user, pass))
+                        {
+                            sw.WriteLine("REGISTER SUCCESS");
+                            sw.Flush();
+
+                            Console.WriteLine("{0} has just registered and logged on!", loginarray[1]);
+
+                            this.Username = user;
+                            this.Password = pass;
+
+                            DataAccessor.InsertUser(this);
+
+                            return true;
+                        }
+                        else
+                        {
+                            sw.WriteLine("REGISTER FAIL");
+                            sw.Flush();
+
+                            return false;
+                        }
                     }
                 }
-                else if (loginarray[0] == "REGISTER")
-                {
-                    this.IsAdmin = false;
-
-                    string user = loginarray[1];
-                    string pass = loginarray[2];
-
-                    if (Authentication.RegisterUser(user, pass))
-                    {
-                        sw.WriteLine("REGISTER SUCCESS");
-                        sw.Flush();
-
-                        Console.WriteLine("{0} has just registered and logged on!", loginarray[1]);
-
-                        this.Username = user;
-                        this.Password = pass;
-
-                        DataAccessor.InsertUser(this);
-
-                        return true;
-                    }
-                    else
-                    {
-                        sw.WriteLine("REGISTER FAIL");
-                        sw.Flush();
-
-                        return false;
-                    }
-                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            finally
+            {
             }
 
             return false;
@@ -402,8 +412,8 @@ namespace SharpIM.Server.Core
 
         public void Authenticate()
         {
-            sw.WriteLine("LOGIN {0:s}", "READY"); // switch READY to DISABLED on-demand
-            sw.WriteLine("REGISTER {0:s}", "READY"); // switch READY to DISABLED on-demand
+            sw.WriteLine("LOGIN {0:s}", "READY"); // TODO: be able to switch to READY to DISABLED on-demand
+            sw.WriteLine("REGISTER {0:s}", "READY"); // TODO: be able to switch to READY to DISABLED on-demand
             sw.Flush();
 
             if (AuthenticateUser())
