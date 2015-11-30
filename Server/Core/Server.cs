@@ -46,7 +46,7 @@ namespace SharpIMServer.Core
             groups = new GroupCollection();
             listener = new TcpListener(IPAddress.Any, port);
 
-            poolThread = new Thread(new ThreadStart(users.SocketPoolingThread));
+            poolThread = new Thread(new ThreadStart(users.SocketPollingThread));
             poolThread.Start();
         }
 

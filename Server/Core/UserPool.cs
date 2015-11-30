@@ -7,17 +7,7 @@ namespace SharpIMServer.Core
 {
     public class UserPool : UserCollection
     {
-        public static UserPool OpenPool()
-        {
-            return null;
-        }
-
-        public static UserPool MergePools(UserPool p1, UserPool p2)
-        {
-            return null;
-        }
-
-        public void SocketPoolingThread()
+        public void SocketPollingThread()
         {
             while (true)
             {

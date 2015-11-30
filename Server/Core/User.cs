@@ -31,25 +31,13 @@ namespace SharpIMServer.Core
             get;
             set;
         }
-
-        public string Password
-        {
-            get;
-            set;
-        }
-
+        
         public string Username
         {
             get;
             set;
         }
-
-        public string Email
-        {
-            get;
-            set;
-        }
-
+        
         public bool IsAdmin
         {
             get;
@@ -149,7 +137,6 @@ namespace SharpIMServer.Core
 
             OnUserStatus(this, new UserStatusEventArgs(Username, BuddyStatus.Offline));
             OnUserQuit(this);
-            // Thread.CurrentThread.Abort();
         }
 
         public void SendStatus(string user, BuddyStatus status)
@@ -206,14 +193,13 @@ namespace SharpIMServer.Core
             {
                 string[] loginarray = sr.ReadLine().Split(' ');
 
-                if (loginarray.Length > 2)
+                if (loginarray.Length > 1)
                 {
                     if (loginarray[0] == "LOGIN")
                     {
                         string user = loginarray[1];
-                        string pass = loginarray[2];
 
-                        if (Authentication.CheckUser(user, pass))
+                        if (Authentication.CheckUser(user))
                         {
                             sw.WriteLine("LOGIN SUCCESS");
                             sw.Flush();
@@ -221,44 +207,12 @@ namespace SharpIMServer.Core
                             Console.WriteLine("{0} has just logged on!", user);
 
                             this.Username = user;
-
-                            // TODO: this should not be saved in memory
-                            this.Password = pass;
-
+                            
                             return true;
                         }
                         else
                         {
                             sw.WriteLine("LOGIN FAIL");
-                            sw.Flush();
-
-                            return false;
-                        }
-                    }
-                    else if (loginarray[0] == "REGISTER")
-                    {
-                        this.IsAdmin = false;
-
-                        string user = loginarray[1];
-                        string pass = loginarray[2];
-
-                        if (Authentication.RegisterUser(user, pass))
-                        {
-                            sw.WriteLine("REGISTER SUCCESS");
-                            sw.Flush();
-
-                            Console.WriteLine("{0} has just registered and logged on!", loginarray[1]);
-
-                            this.Username = user;
-                            this.Password = pass;
-
-                            DataAccessor.InsertUser(this);
-
-                            return true;
-                        }
-                        else
-                        {
-                            sw.WriteLine("REGISTER FAIL");
                             sw.Flush();
 
                             return false;
@@ -393,14 +347,6 @@ namespace SharpIMServer.Core
                             OnUserStatus(this, new UserStatusEventArgs(this.Username, BuddyStatus.Online));
                         }
                     }
-                    else if (msgarray[1].ToUpper() == "EMAIL")
-                    {
-                        this.Email = msgarray[2];
-                    }
-                    else if (msgarray[1].ToUpper() == "PASSWD")
-                    {
-                        this.Password = msgarray[2];
-                    }
                 }
             }
             catch (Exception e)
@@ -411,8 +357,7 @@ namespace SharpIMServer.Core
 
         public void Authenticate()
         {
-            sw.WriteLine("LOGIN {0:s}", "READY"); // TODO: be able to switch to READY to DISABLED on-demand
-            sw.WriteLine("REGISTER {0:s}", "READY"); // TODO: be able to switch to READY to DISABLED on-demand
+            sw.WriteLine("LOGIN {0:s}", "READY");
             sw.Flush();
 
             if (AuthenticateUser())
